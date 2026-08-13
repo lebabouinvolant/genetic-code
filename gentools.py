@@ -18,3 +18,32 @@ class ADN():
         for i in range(self.length):
             if random.random() < self.mutation_rate:
                 self.genes[i] = random.random()
+
+
+class Population():
+    def __init__(self, numberOfElements, ElementType, length, mutation, pos):
+        self.population = []
+        self.startingPos = pos.copy()
+        for _ in range(numberOfElements):
+            self.population.append(ElementType(length, mutation, pos))
+    def select(self, target):
+        totalFitness = 0
+        newPopulation = []
+        for el in self.population:
+            el.evaluate(target)
+            totalFitness += el.fitness
+        for el in self.population:
+            el.fitness /= totalFitness
+        for i in range(len(self.population)):
+            parent1 = self.weightedSelection()
+            parent2 = self.weightedSelection()
+            newPopulation.append(parent1.reproduce(parent2, self.startingPos))
+        self.population = newPopulation
+    def weightedSelection(self):
+        idx = 0
+        start = random.random()
+        while start > 0:
+            start -= self.population[idx].fitness
+            idx += 1
+        idx -= 1
+        return self.population[idx]
