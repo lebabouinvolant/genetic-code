@@ -11,7 +11,8 @@ class Rocket():
         self.velocity = pygame.Vector2(0, 0)
     def evaluate(self, targetPoint):
         distance = self.position.distance_to(targetPoint)
-        self.fitness = 1 / (distance+0.1) #éviter division par 0
+        if 1 / (distance+0.1) > self.fitness:
+            self.fitness = 1 / (distance+0.1) #éviter division par 0
     def reproduce(self, parent2, startingPos):
         child = Rocket(self.adn.length, self.adn.mutation_rate)
         child.adn = self.adn.reproduce(parent2.adn)
@@ -28,9 +29,10 @@ class Rocket():
         pygame.draw.circle(screen, (255, 255, 255), self.position, 1)
 
 class RocketPopulation(gentools.Population):
-    def update(self, frame, dt):
+    def update(self, frame, dt, target):
         for el in self.population:
             el.move(frame, dt)
+            el.evaluate(target)
     def draw(self, screen):
         for el in self.population:
             el.draw(screen)
@@ -56,7 +58,7 @@ while run: #Une itération par génération
     while frame < maxFrame: #Une itération par frame
         clock.tick(60)
         for _ in range(simulationSpeed):
-            pop.update(frame, SIM_DT)
+            pop.update(frame, SIM_DT, targetCoordinates)
             frame += 1
         screen.fill((0, 0, 0))
         pygame.draw.circle(screen, (255, 0, 0), targetCoordinates, 10)
