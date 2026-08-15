@@ -2,11 +2,12 @@ import random
 
 class Perceptron():
     """
+    La classe de base pour un neurone, n correspond au nombre de poids (et donc d'inputs sans compter le biais) qui seront utilisés
     Les poids vont de -1 à 1 et sont chacun associés à un input. Le Perceptron de base consiste en 3 poids et 2 inputs (plus 1 de biais qui vaut tjrs 1 et qui est associé au poids de biais)
     """
     def __init__(self, n):
         self.weights = []
-        for _ in range(n): self.weights.append((random.random()-0.5)*2)
+        for _ in range(n+1): self.weights.append((random.random()-0.5)*2) #On ajoute le poids du biais
     def neuron(self, inputs):
         sum = 0
         for i in range(2):
@@ -49,8 +50,3 @@ def test(neuron):
             good += 1
         cnt += 1
     print(f"Le modèle a eu bon dans {good} / {cnt} cas")
-
-
-perceptron = Perceptron(3)
-run(perceptron)
-test(perceptron)
