@@ -5,7 +5,7 @@ class NeuralNetwork():
     """La classe de base pour un réseau de neurone, la fonction d'initialisation prend les nombres d'inputs, de neurones cachés et d'outputs en entrée
     Pour l'instant c'est un réseau 3 couches et fully connected, on passera au deep learning plus tard
     On initialise les poids entre -1 et 1"""
-    def __init__(self, ninputs, nhiddens, noutputs, nhiddenlayers = 1):
+    def __init__(self, ninputs, nhiddens, noutputs, learningRate = 0.01, nhiddenlayers = 1):
         """L'initialisation de la classe NeuralNetwork prend 3 arguments: le nombre d'entrées du réseau, le nombre de neurones de la couche cachée et le nombre de sorties  """
         self.inputnumber = ninputs
         self.neurons = [Matrix((nhiddens, ninputs))] #self.neurons[couche][neurone][poids(autrement dit index du précédent neurone qui est connecté par ce poids)] La première hidden layer doit prendre les inputs en entrée, contrairement aux suivantes
@@ -18,6 +18,7 @@ class NeuralNetwork():
             el.randomize()
         for el in self.biases:
             el.randomize()
+        self.learningRate = learningRate
     def feedForward(self, inputs: Matrix):
         """
         La fonction responsable de faire fonctionner le réseau de neurone.
@@ -35,12 +36,17 @@ class NeuralNetwork():
         """
         processed = inputs
         intermediates = []
-        for i in range(len(self.neurons)):
+        for i in range(len(self.neurons)-1):
             processed = self.neurons[i] * processed
             processed += self.biases[i]
             intermediates.append([processed]) #The actual values
             processed.map(self.sigmoid) #Activation
             intermediates[i].append(processed) #Activated values
+        processed = self.neurons[i+1] * processed
+        processed += self.biases[i+1]
+        intermediates.append([processed]) #The actual values
+        processed.map(self.ReLU) #Activation
+        intermediates[i].append(processed) #Activated values
         return processed, intermediates
 
     def train(self, input, answer):
@@ -65,7 +71,7 @@ class NeuralNetwork():
                 errorDerivated = 0
                 for neuronIndex in range(len(deltas[i+1])): #On somme tous les deltas des neurones suivants fois les poids qui les relient au neurone actuel pour trouver le gradient d'activation du neurone actuel par rapport à la valeur activée du neurone
                     errorDerivated += deltas[i+1][neuronIndex] * self.neurons[i+1][neuronIndex][j]
-                deltas[i][j] = intermediates[i][j][1] * (1-intermediates[i][j][1]) * errorDerivated
+                deltas[i][j] = 0 if intermediates[i][j][0] <= 0 else 1 * errorDerivated
                 for k in range(len(self.neurons[i][j])): #Pour chaque connection appartenant à un neurone
                     if i == 0: #On doit aller chercher non pas la valeur activée du neurone précédent mais l'input
                         weightgradient[i][j][k] = deltas[i][j] * input[k][0]
@@ -73,12 +79,14 @@ class NeuralNetwork():
         for i in range(len(self.neurons)):
             for j in range(len(self.neurons[i])):
                 for k in range(len(self.neurons[i][j])):
-                    self.neurons[i][j][k] = weightgradient[i][j][k] #Update weights
+                    self.neurons[i][j][k] =  self.neurons[i][j][k] - self.learningRate * weightgradient[i][j][k] #Update weights
                 self.biases[i][j] = deltas[i][j] #Update biases
     @staticmethod 
     def sigmoid(x):
         return 1/(1+math.e**-x)
-    
+    @staticmethod 
+    def ReLU(x):
+        return max(0, x)
 
 test = NeuralNetwork(1, 5, 3, 3)
 print(test.feedForTrain(Matrix([[1]])))
