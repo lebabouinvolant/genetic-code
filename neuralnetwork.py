@@ -14,10 +14,16 @@ class NeuralNetwork():
         self.neurons.append(Matrix((noutputs, nhiddens))) # The output layer
         self.biases = [Matrix((nhiddens, 1)) for _ in range(nhiddenlayers)]
         self.biases.append(Matrix((noutputs, 1))) #Output bias
-        for el in self.neurons:
-            el.randomize()
-        for el in self.biases:
-            el.randomize()
+        for layer in self.neurons:
+            scale = math.sqrt(2 / layer.columns)
+
+            for i in range(layer.lines):
+                for j in range(layer.columns):
+                    layer[i][j] = random.gauss(0, scale)
+
+        for bias in self.biases:
+            for i in range(bias.lines):
+                bias[i][0] = 0        
         self.learningRate = learningRate
     def feedForward(self, inputs: Matrix):
         """
@@ -25,10 +31,13 @@ class NeuralNetwork():
         Elle prend un argument: les inputs (sous forme d'une matrice de n*1)
         """
         processed = inputs
-        for i in range(len(self.neurons)):
+        for i in range(len(self.neurons)-1):
             processed = self.neurons[i] * processed
             processed += self.biases[i]
-            processed.map(self.sigmoid) #Activation
+            processed.map(self.ReLU) #Activation
+        processed = self.neurons[-1] * processed
+        processed += self.biases[-1]
+        processed.map(self.sigmoid)
         return processed
     def feedForTrain(self, inputs : Matrix):
         """
@@ -39,54 +48,86 @@ class NeuralNetwork():
         for i in range(len(self.neurons)-1):
             processed = self.neurons[i] * processed
             processed += self.biases[i]
-            intermediates.append([processed]) #The actual values
-            processed.map(self.sigmoid) #Activation
-            intermediates[i].append(processed) #Activated values
-        processed = self.neurons[i+1] * processed
-        processed += self.biases[i+1]
-        intermediates.append([processed]) #The actual values
-        processed.map(self.ReLU) #Activation
-        intermediates[i].append(processed) #Activated values
+            before = Matrix([row[:] for row in processed.representation])
+            processed.map(self.ReLU)
+            after = Matrix([row[:] for row in processed.representation])
+            intermediates.append([before, after]) #The actual values
+        processed = self.neurons[-1] * processed
+        processed += self.biases[-1]
+        before = Matrix([row[:] for row in processed.representation])
+        processed.map(self.sigmoid) #Activation
+        after = Matrix([row[:] for row in processed.representation])
+        intermediates.append([before, after]) #The actual values
         return processed, intermediates
 
-    def train(self, input, answer):
+    def train(self, input: Matrix, answer):
         """
         La fonction responsable d'entraîner le réseau de neurone avec un input et un output donné.
         Les inputs et les outputs doivent être donnés sous forme de matrices (de la même taille que prévus par le réseau, cela va de soi)
         """
         result, intermediates = self.feedForTrain(input)
-        errors = [(result[i][0]-answer[i][0])**2 for i in range(len(result))]
+        errors = [(result[i][0] - answer[i][0])**2 for i in range(len(result))]
         lastlayer = len(self.neurons)-1
         cost = sum(errors)/len(errors) #Le coût est la moyenne des erreurs
         deltas = [[0 for _ in range(len(self.neurons[i]))] for i in range(len(self.neurons))] #On y stocke les dérivées des neurones (somme des connections): 1 élément par neurone, cela fait aussi office de gradient du biais
         weightgradient = [[[0 for _ in range(len(self.neurons[i][j]))] for j in range(len(self.neurons[i]))] for i in range(len(self.neurons))] #On y stocke les dérivées des poids (1 élément par connection)
         for i in range(len(self.neurons[lastlayer])): #Pour chaque neurone de la dernière couche
-            outputderivated = (2 / len(self.neurons[lastlayer])) * (intermediates[lastlayer][i][1] - answer[i][0]) #A quel point changer l'output va changer le coût (qui est égal à la moyenne des erreurs)
-            activationderivated = intermediates[lastlayer][i][1] * (1-intermediates[lastlayer][i][1]) #Formule pour la fonction sigmoïde
+            outputderivated = (2 / len(self.neurons[lastlayer])) * (intermediates[lastlayer][1][i][0] - answer[i][0]) #A quel point changer l'output va changer le coût (qui est égal à la moyenne des erreurs)
+            activationderivated = intermediates[lastlayer][1][i][0] * (1-intermediates[lastlayer][1][i][0]) #Formule pour la fonction sigmoïde
             deltas[lastlayer][i] = outputderivated * activationderivated
             for j in range((len(self.neurons[lastlayer][i]))): #Pour chaque poids
-                weightgradient[lastlayer][i][j] = deltas[lastlayer][i] * intermediates[lastlayer-1][j][1] #delta de ce neurone fois activation de celui auquel relie le poids
+                weightgradient[lastlayer][i][j] = (
+                    deltas[lastlayer][i]
+                    * intermediates[lastlayer-1][1][j][0]
+                )
         for i in range(len(self.neurons)-2, -1, -1): #Pour chaque couche en descendant (sauf la couche d'output)
             for j in range(len(self.neurons[i])): #Pour chaque neurone
                 errorDerivated = 0
                 for neuronIndex in range(len(deltas[i+1])): #On somme tous les deltas des neurones suivants fois les poids qui les relient au neurone actuel pour trouver le gradient d'activation du neurone actuel par rapport à la valeur activée du neurone
                     errorDerivated += deltas[i+1][neuronIndex] * self.neurons[i+1][neuronIndex][j]
-                deltas[i][j] = 0 if intermediates[i][j][0] <= 0 else 1 * errorDerivated
+                deltas[i][j] = 0 if intermediates[i][0][j][0] <= 0 else 1 * errorDerivated
                 for k in range(len(self.neurons[i][j])): #Pour chaque connection appartenant à un neurone
                     if i == 0: #On doit aller chercher non pas la valeur activée du neurone précédent mais l'input
                         weightgradient[i][j][k] = deltas[i][j] * input[k][0]
-                    else: weightgradient[i][j][k] = deltas[i][j] * intermediates[i-1][k][1]
+                    else: weightgradient[i][j][k] = deltas[i][j] * intermediates[i-1][1][k][0]
         for i in range(len(self.neurons)):
             for j in range(len(self.neurons[i])):
                 for k in range(len(self.neurons[i][j])):
                     self.neurons[i][j][k] =  self.neurons[i][j][k] - self.learningRate * weightgradient[i][j][k] #Update weights
-                self.biases[i][j] = deltas[i][j] #Update biases
+                self.biases[i][j][0] -= self.learningRate * deltas[i][j] #Update biases
+    def allTrain(self, inputs, answers):
+        """
+        La fonction responsable d'entrainer le réseau de neurones sur un ensemble d'entrées et de sorties en itérant à travers diverses itérations d'entrainement
+        """
+        for i in range(len(inputs)):
+            leninput = len(inputs[i])
+            matrixInput = Matrix((leninput, 1))
+            for j in range(leninput):
+                matrixInput[j][0] = inputs[i][j]
+            self.train(matrixInput, answers[i])
+    def predict(self, image):
+        output = self.feedForward(image)
+
+        values = [output[i][0] for i in range(10)]
+        return values.index(max(values))
+    def allTest(self, inputs, answers):
+        win = 0
+        for i in range(len(inputs)):
+            leninput = len(inputs[i])
+            matrixInput = Matrix((leninput, 1))
+            for j in range(leninput):
+                matrixInput[j][0] = inputs[i][j]
+            if self.predict(matrixInput) == answers[i]:
+                win += 1
+        win /= len(answers)
+        return win
+
     @staticmethod 
     def sigmoid(x):
-        return 1/(1+math.e**-x)
+        if x >= 0:
+            return 1 / (1 + math.exp(-x))
+        else:
+            return math.exp(x) / (1 + math.exp(x))    
     @staticmethod 
     def ReLU(x):
         return max(0, x)
-
-test = NeuralNetwork(1, 5, 3, 3)
-print(test.feedForTrain(Matrix([[1]])))

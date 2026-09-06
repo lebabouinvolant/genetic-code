@@ -72,10 +72,10 @@ class Matrix():
         for i in range(self.lines):
             for j in range(self.columns):
                 output[j][i] = self.representation[j][i]
-    def map(self, func: function):
-        for el in self.representation:
-            for el2 in el:
-                el2 = func(el2)
+    def map(self, func):
+        for i in range(self.lines):
+            for j in range(self.columns):
+                self.representation[i][j] = func(self.representation[i][j])
     def bilan(self):
         out = 0
         for el in self.representation:
