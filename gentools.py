@@ -20,20 +20,23 @@ class ADN():
                 self.genes[i] = random.random()
 
 class Population():
-    def __init__(self, numberOfElements, ElementType, length, mutation, pos):
+    """
+    Classe utilitaire pour les populations de "crÃ©atures" exploitant le systÃ¨me d'ADN implÃ©mentÃ© ci-dessus.
+    Le dernier argument (additionalArgs) doit Ãªtre un tableau qui contient tous les arguments passÃ©s Ã  chaque instance de crÃ©ature de toutes les gÃ©nÃ©rations, gÃ©nÃ©ralement pour contenter leur logique mÃ©tier (par exemple la position de dÃ©part des crÃ©atures)
+    """
+    def __init__(self, numberOfElements, ElementType, length, mutation):
         self.population = []
-        self.startingPos = pos.copy()
         for _ in range(numberOfElements):
-            self.population.append(ElementType(length, mutation, pos))
-    def select(self, target):
-        totalFitness = 0
+            self.population.append(ElementType(length, mutation))
+    def select(self, target=None):
         newPopulation = []
         for el in self.population:
-            el.evaluate(target)
-        for i in range(len(self.population)):
+            if target: el.evaluate(target)
+            else: el.evaluate()
+        for _ in range(len(self.population)):
             parent1 = self.weightedSelection()
             parent2 = self.weightedSelection()
-            newPopulation.append(parent1.reproduce(parent2, self.startingPos))
+            newPopulation.append(parent1.reproduce(parent2))
         self.population = newPopulation
     def weightedSelection(self):
         totalFitness = sum(el.fitness for el in self.population)

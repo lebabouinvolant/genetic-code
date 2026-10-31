@@ -4,23 +4,24 @@ import pygame
 import random
 
 class Rocket():
-    def __init__(self, length, mutation, pos=pygame.Vector2(0,0)):
+    def __init__(self, length, mutation):
         self.adn = gentools.ADN(length, mutation)
         self.fitness = 0
-        self.position = pos.copy()
+        self.position = None
+        self.startingPos = None
         self.velocity = pygame.Vector2(0, 0)
     def evaluate(self, targetPoint):
         distance = self.position.distance_to(targetPoint)
         if 1 / (distance+0.1) > self.fitness:
-            self.fitness = 1 / (distance+0.1) #éviter division par 0
-    def reproduce(self, parent2, startingPos):
+            self.fitness = 1 / (distance+0.01) #Ã©viter division par 0
+    def reproduce(self, parent2):
         child = Rocket(self.adn.length, self.adn.mutation_rate)
         child.adn = self.adn.reproduce(parent2.adn)
-        child.position = startingPos.copy()
+        child.position = self.startingPos.copy()
         return child
     def move(self, frame, dt):
         speedCoeff = 200
-        XForce = (self.adn.genes[frame*2] - 0.5 ) * 2 *speedCoeff #On extrapole de 0 à 1 en -1 à 1
+        XForce = (self.adn.genes[frame*2] - 0.5 ) * 2 *speedCoeff #On extrapole de 0 Ã  1 en -1 Ã  1
         YForce = (self.adn.genes[frame*2+1] - 0.5 ) * 2 *speedCoeff
         currentForce = pygame.Vector2(XForce, YForce)
         self.velocity += currentForce * dt
@@ -36,6 +37,17 @@ class RocketPopulation(gentools.Population):
     def draw(self, screen):
         for el in self.population:
             el.draw(screen)
+    def __init__(self, numberOfElements, ElementType, length, mutation, pos):
+        self.start = pos
+        super().__init__(numberOfElements, ElementType, length, mutation)
+        for el in self.population:
+            el.startingPos = self.start.copy()
+            el.position = self.start.copy()
+    def select(self, target):
+        super().select(target)
+        for el in self.population:
+            el.startingPos = self.start.copy()
+            el.position = self.start.copy()
 
     
 
@@ -54,8 +66,8 @@ center = pygame.Vector2(width / 2, height / 2)
 pop = RocketPopulation(30, Rocket, maxFrame*2, 0.01, center)
 clock = pygame.time.Clock()
 targetCoordinates = pygame.Vector2(random.randint(0, width), random.randint(0, height))
-while run: #Une itération par génération
-    while frame < maxFrame: #Une itération par frame
+while run: #Une itÃ©ration par gÃ©nÃ©ration
+    while frame < maxFrame: #Une itÃ©ration par frame
         clock.tick(60)
         for _ in range(simulationSpeed):
             pop.update(frame, SIM_DT, targetCoordinates)
